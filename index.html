@@ -21,7 +21,7 @@
   .doc{display:block;margin-top:12px;text-align:center;padding:14px;border-radius:12px;
       background:#e8f7ee;border:1px solid #9ad8b4;color:#1a7f45;text-decoration:none;
       font-weight:700;font-size:16px}
-  .doc.bad{background:#f4f6fb;border-color:var(--line);color:var(--muted)}
+  .doc.bad{background:#f4f6fb;border-color:var(--line);color:var(--muted);font-size:14px}
   .notice{display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#fff7e6;
       border:1px solid #ffe0a3;color:#8a5b00;font-size:13px;line-height:1.7}
   input[type=search]{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:10px;
@@ -104,9 +104,27 @@ function refresh() {
 }
 q.addEventListener('input', refresh);
 refresh();
-// 腾讯文档 + GitHub 双通道：两个按钮始终显示，点哪个都行
+// 腾讯文档 + GitHub 双通道：两个按钮始终显示
+// 同时后台探测腾讯文档是否还在，失效就把按钮标出来，避免客户白点
 var doc = document.getElementById('doc');
 if (doc) { doc.style.display = 'block'; }
+(function watchDoc() {
+  var url = doc ? doc.getAttribute('href') : '';
+  if (!url || url === '#') return;
+  var timer = setTimeout(function () { mark(false); }, 6000);
+  function mark(alive) {
+    clearTimeout(timer);
+    if (!doc) return;
+    if (alive) { doc.textContent = '📄 腾讯文档在线查看'; }
+    else {
+      doc.textContent = '📄 腾讯文档暂时打不开 · 请用上面的下载按钮';
+      doc.classList.add('bad');
+    }
+  }
+  fetch(url, { mode: 'no-cors', cache: 'no-store' })
+    .then(function () { mark(true); })
+    .catch(function () { mark(false); });
+})();
 
 // 下载走直链，由系统原生接管（iOS / 安卓 / 微信都能正常下载）
 </script>
