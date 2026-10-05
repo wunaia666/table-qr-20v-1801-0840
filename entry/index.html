@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20V1801-0840 表格</title>
+<style>
+  body{margin:0;background:#f4f6fb;color:#1c2333;
+       font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  .wrap{max-width:520px;margin:0 auto;padding:56px 20px;text-align:center}
+  .card{background:#fff;border:1px solid #e4e9f2;border-radius:16px;padding:32px 22px;
+        box-shadow:0 6px 24px rgba(20,30,60,.06)}
+  h1{margin:0 0 10px;font-size:20px}
+  .st{margin:14px 0 20px;color:#6b7688;font-size:14px}
+  .sp{width:34px;height:34px;border:3px solid #dbe3f2;border-top-color:#2b6cff;border-radius:50%;
+      margin:0 auto 16px;animation:sp 0.9s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .btn{display:block;padding:14px;border-radius:12px;text-decoration:none;font-weight:700;margin-top:10px}
+  .p{background:#2b6cff;color:#fff}
+  .s{background:#e8f7ee;color:#1a7f45;border:1px solid #9ad8b4}
+  .tip{color:#6b7688;font-size:13px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="sp"></div>
+    <h1>20V1801-0840 表格</h1>
+    <div class="st" id="st">正在为你选择最快的通道…</div>
+    <a class="btn p" id="qq" href="https://docs.qq.com/sheet/DT1pYSVBIUWZvaVV2">📄 打开腾讯文档</a>
+    <a class="btn s" id="gh" href="https://wunaia666.github.io/table-qr-20v-1801-0840/" style="display:none">⬇ 改用备用页面（GitHub）</a>
+    <div class="tip" id="tip">优先使用腾讯文档；若它被删除或打不开，会自动切换到 GitHub 备用页。</div>
+  </div>
+</div>
+<script>
+var QQ = 'https://docs.qq.com/sheet/DT1pYSVBIUWZvaVV2', GH = 'https://wunaia666.github.io/table-qr-20v-1801-0840/';
+var st = document.getElementById('st'), ghBtn = document.getElementById('gh'), tip = document.getElementById('tip');
+function go(url, why) {
+  st.textContent = why || '正在跳转…';
+  location.replace(url);
+}
+// 探测：能取到腾讯文档的响应（哪怕被跨域拦截）说明通道活着
+var settled = false;
+function decide(ok, why) {
+  if (settled) return;
+  settled = true;
+  if (ok) { go(QQ, '腾讯文档可用，正在打开…'); }
+  else {
+    st.textContent = '腾讯文档打不开（可能已被删除），已切换到备用页面';
+    ghBtn.style.display = 'block';
+    tip.textContent = '备用页面同样包含完整表格，可在线查看并下载 Excel。';
+    go(GH, '正在切换到备用页面…');
+  }
+}
+fetch(QQ, { mode: 'no-cors', cache: 'no-store' }).then(function () { decide(true, ''); })
+  .catch(function () { decide(false, ''); });
+setTimeout(function () { decide(false, ''); }, 3500);   // 兜底：3.5 秒没结果就切备用
+</script>
+</body>
+</html>
