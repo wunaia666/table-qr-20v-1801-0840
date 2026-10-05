@@ -1,0 +1,83 @@
+name: 链接巡检（腾讯文档 + 站点）
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检查腾讯文档是否还在
+        id: qq
+        run: |
+          URL="https://docs.qq.com/sheet/DT1pYSVBIUWZvaVV2"
+          CODE=$(curl -sSL -o body.html -w '%{http_code}' --max-time 40 \
+            -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0' "$URL" || echo "000")
+          echo "http=$CODE"
+          if [ "$CODE" != "200" ]; then echo "qq_dead=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if grep -qE '已被删除|不存在或已删除|文档不存在|已被移入回收站|没有权限' body.html; then
+            echo "qq_dead=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "qq_dead=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 检查 GitHub 站点是否正常
+        id: gh
+        run: |
+          URL="https://wunaia666.github.io/table-qr-20v-1801-0840/index.html"
+          CODE=$(curl -sSL -o site.html -w '%{http_code}' --max-time 40 "$URL" || echo "000")
+          echo "http=$CODE"
+          if [ "$CODE" = "200" ] && grep -q '点这里下载表格' site.html; then
+            echo "site_ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "site_ok=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 发现失效就开 Issue 提醒
+        if: steps.qq.outputs.qq_dead == '1' || steps.gh.outputs.site_ok == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QQ_DEAD: ${{ steps.qq.outputs.qq_dead }}
+          SITE_OK: ${{ steps.gh.outputs.site_ok }}
+        run: |
+          BODY="巡检发现链接异常，请尽快处理（重新上传腾讯文档或重建站点）。
+
+          - 腾讯文档状态：$([ "$QQ_DEAD" = "1" ] && echo '❌ 已失效（被删/权限被改）' || echo '✅ 正常')
+          - GitHub 站点状态：$([ "$SITE_OK" = "1" ] && echo '✅ 正常' || echo '❌ 打不开')
+          - 检查时间：$(date -u '+%Y-%m-%d %H:%M UTC')
+
+          处理办法：把表格重新上传到腾讯文档 → 把新链接发我 → 我更新页面（二维码不用换）。"
+          EXIST=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=链接失效" \
+            | grep -c '"number"' || true)
+          if [ "$EXIST" = "0" ]; then
+            curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues" \
+              -d "{\"title\":\"⚠️ 链接失效，需要重新上传\",\"body\":\"$BODY\",\"labels\":[\"链接失效\"]}" > /dev/null
+            echo "已创建提醒 Issue"
+          else
+            echo "已有未关闭的提醒 Issue，跳过"
+          fi
+
+      - name: 恢复正常就关闭提醒
+        if: steps.qq.outputs.qq_dead == '0' && steps.gh.outputs.site_ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NUMS=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=链接失效" \
+            | grep -o '"number": *[0-9]*' | grep -o '[0-9]*' || true)
+          for n in $NUMS; do
+            curl -sS -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/$n" \
+              -d '{"state":"closed","body":"巡检恢复正常，自动关闭。"}' > /dev/null
+            echo "已关闭 Issue #$n"
+          done
